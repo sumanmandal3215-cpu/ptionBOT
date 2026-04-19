@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUMON'S STRATEGY AI - ADVANCED</title>
+    <style>
+        :root { --gold: #d4af37; --sky: #00d4ff; --dark: #010105; --red: #ff4757; --green: #00ff88; }
+        body { background-color: var(--dark); font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; color: white; padding: 10px; overflow-x: hidden; }
+        
+        #chart-box { width: 100%; height: 260px; border: 1.5px solid var(--gold); border-radius: 15px; overflow: hidden; margin-bottom: 12px; box-shadow: 0 0 25px rgba(212, 175, 55, 0.2); }
+
+        .ai-container { background: rgba(10, 10, 25, 0.98); border-radius: 30px; padding: 20px; border: 2.5px solid var(--sky); box-shadow: 0 0 50px rgba(0, 212, 255, 0.3); width: 340px; text-align: center; }
+        
+        .lang-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
+        .lang-btn { background: #111; border: 1px solid var(--sky); color: var(--sky); padding: 5px 10px; border-radius: 15px; font-size: 10px; cursor: pointer; }
+
+        .ai-orb { width: 100px; height: 100px; border-radius: 50%; background: radial-gradient(circle, var(--sky), #005a6e, #000); margin: 10px auto; box-shadow: 0 0 40px var(--sky); animation: pulse 2s infinite ease-in-out; cursor: pointer; border: 3px solid rgba(255,255,255,0.3); }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        
+        .active-mode { box-shadow: 0 0 60px var(--green) !important; border: 4px solid var(--green) !important; }
+
+        #signal-display { font-size: 28px; font-weight: bold; margin: 10px 0; min-height: 50px; transition: 0.3s; }
+        .up-signal { color: var(--green); text-shadow: 0 0 25px var(--green); animation: bounce 0.6s infinite alternate; }
+        .down-signal { color: var(--red); text-shadow: 0 0 25px var(--red); animation: bounce 0.6s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+        select, button { width: 100%; padding: 10px; margin-top: 8px; border-radius: 12px; border: 1.5px solid var(--gold); background: #000; color: #fff; font-size: 14px; outline: none; }
+        .main-btn { background: linear-gradient(45deg, var(--gold), #f1c40f); color: #000; font-weight: bold; border: none; cursor: pointer; font-size: 17px; margin-top: 12px; }
+        
+        #timer-info { font-size: 14px; color: var(--sky); margin-top: 8px; font-weight: bold; display: none; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="chart-box"><div id="trading-widget"></div></div>
+
+    <div class="ai-container">
+        <div class="lang-bar">
+            <button class="lang-btn" onclick="changeLang('bn-BD')">বাংলা</button>
+            <button class="lang-btn" onclick="changeLang('en-US')">English</button>
+            <button class="lang-btn" onclick="changeLang('hi-IN')">हिन्दी</button>
+        </div>
+
+        <div class="ai-orb" id="ai-orb"></div>
+        
+        <div id="signal-display">READY</div>
+        <div id="timer-info">এনালাইসিস টাইম: <span id="clock">00:00</span></div>
+        
+        <label style="font-size: 11px; color: var(--gold);">এনালাইসিস সময় সিলেক্ট করুন (মিনিট):</label>
+        <select id="time-selector">
+            <option value="1">১ মিনিট</option>
+            <option value="5" selected>৫ মিনিট</option>
+            <option value="10">১০ মিনিট</option>
+            <option value="15">১৫ মিনিট</option>
+        </select>
+
+        <select id="market-selector" onchange="updateMarket()">
+            <option value="FX:EURUSD">EUR/USD (Pocket OTC)</option>
+            <option value="FX:GBPUSD">GBP/USD (Pocket OTC)</option>
+            <option value="FX:USDJPY">USD/JPY (Pocket OTC)</option>
+            <option value="TVC:GOLD">GOLD (OTC Market)</option>
+            <option value="BINANCE:BTCUSDT">BITCOIN (Real)</option>
+            <option value="BINANCE:ETHUSDT">ETHEREUM (Real)</option>
+            <option value="FX:AUDUSD">AUD/USD (OTC)</option>
+            <option value="FX:USDCAD">USD/CAD (OTC)</option>
+            <option value="FX:EURJPY">EUR/JPY (OTC)</option>
+            <option value="NASDAQ:AAPL">APPLE INC (OTC)</option>
+            <option value="NASDAQ:TSLA">TESLA (OTC)</option>
+            </select>
+
+        <button class="main-btn" id="sig-btn" onclick="startAdvancedSession()">GET SIGNAL</button>
+    </div>
+
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script>
+        let currentLang = 'bn-BD';
+        let symbol = "FX:EURUSD";
+        let sessionTimer;
+
+        function initChart(s) {
+            new TradingView.widget({
+                "width": "100%", "height": 260, "symbol": s,
+                "interval": "5", "theme": "dark", "style": "1", "locale": "en", "container_id": "trading-widget"
+            });
+        }
+        initChart(symbol);
+
+        function changeLang(l) {
+            currentLang = l;
+            speak(l === 'bn-BD' ? "ভাষা পরিবর্তন করা হয়েছে।" : "Language changed.");
+        }
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const s = new SpeechSynthesisUtterance(text);
+            s.lang = currentLang;
+            window.speechSynthesis.speak(s);
+        }
+
+        function updateMarket() {
+            symbol = document.getElementById('market-selector').value;
+            initChart(symbol);
+            speak("মার্কেট কানেক্টেড।");
+        }
+
+        function startAdvancedSession() {
+            const display = document.getElementById('signal-display');
+            const orb = document.getElementById('ai-orb');
+            const timerBox = document.getElementById('timer-info');
+            const btn = document.getElementById('sig-btn');
+            const selectedTime = document.getElementById('time-selector').value;
+
+            // সিগন্যাল প্রদান
+            const isUp = Math.random() > 0.5;
+            display.innerHTML = isUp ? '<span class="up-signal">UP ⬆️</span>' : '<span class="down-signal">DOWN ⬇️</span>';
+            
+            orb.classList.add('active-mode');
+            timerBox.style.display = "block";
+            btn.disabled = true;
+
+            // র্যান্ডম মোটিভেশন স্ক্রিপ্ট
+            const scripts = [
+                "সুমন ভাইয়ের নির্দেশে এনালাইসিস চলছে। মনে রাখবেন ট্রেডিং অনেক রিস্কি, সবসময় রিস্ক ম্যানেজমেন্ট ফলো করুন।",
+                "পৃথিবীতে ১০০ ভাগ সঠিক বলে কিছু নেই। লস এড়াতে অবশ্যই স্টপ লস ব্যবহার করবেন। সুমন ভাইয়ের স্ট্র্যাটেজি ফলো করুন।",
+                "অল্প পুঁজি দিয়েও বড় কিছু সম্ভব যদি আপনার শিক্ষা সঠিক হয়। আমাদের টেলিগ্রাম গ্রুপে জয়েন করুন, লিঙ্ক প্রোফাইল বায়োতে আছে।",
+                "বাইরের ফেক ইনফ্লুয়েন্সারদের থেকে দূরে থাকুন। তারা শুধু লস করায়। আমরা লজিক দিয়ে ট্রেড করি।",
+                "ট্রেডিং হলো একটি ব্যবসা। আবেগ দিয়ে নয়, মাথা ঠান্ডা রেখে ট্রেড করুন। আমাদের সাথে থাকলে আপনি সঠিক গাইডলাইন পাবেন।",
+                "যারা ফ্রিতে শিখতে চান তারা এখনই টেলিগ্রামে জয়েন করুন। সুমন ভাই আপনাদের সব প্রশ্নের উত্তর দিবেন।"
+            ];
+
+            // প্রথম কথা
+            speak(scripts[Math.floor(Math.random() * scripts.length)]);
+
+            // প্রতি ২০ সেকেন্ডে নতুন কথা বলবে
+            let talkInterval = setInterval(() => {
+                speak(scripts[Math.floor(Math.random() * scripts.length)]);
+            }, 20000);
+
+            let timeLeft = selectedTime * 60;
+            clearInterval(sessionTimer);
+            sessionTimer = setInterval(() => {
+                timeLeft--;
+                let m = Math.floor(timeLeft / 60);
+                let s = timeLeft % 60;
+                document.getElementById('clock').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(sessionTimer);
+                    clearInterval(talkInterval);
+                    orb.classList.remove('active-mode');
+                    display.innerText = "READY";
+                    timerBox.style.display = "none";
+                    btn.disabled = false;
+                    speak("সেশন শেষ। নতুন সিগন্যালের জন্য আবার বাটন চাপুন।");
+                }
+            }, 1000);
+        }
+
+        window.onload = () => setTimeout(() => speak("সুমনস স্ট্র্যাটেজি এআই প্রো-তে স্বাগতম।"), 1000);
+    </script>
+</body>
+</html>
